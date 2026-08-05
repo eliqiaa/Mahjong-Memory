@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tap & Tell — Mat Companion App</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --cream:#F3EEDF; --ink:#2B2A25; --teal:#3E6E64; --teal-dark:#2A4A43;
+    --clay:#B5563C; --gold:#C9A227; --line:#D9D0B8; --card:#FBF8EF; --radius:14px;
+    --green:#4C8567; --amber:#C98A27; --red:#B5563C;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--cream); color:var(--ink); font-family:'Georgia','Iowan Old Style',serif;}
+  .sans{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+  header{background:var(--teal-dark); color:var(--cream); padding:22px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+  header h1{margin:0; font-size:1.5rem;}
+  header .tag{font-size:0.78rem; opacity:0.75; font-family:-apple-system,BlinkMacSystemFont,sans-serif; margin-top:2px;}
+  nav{display:flex; gap:6px; flex-wrap:wrap;}
+  nav button{font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:transparent; border:1px solid rgba(243,238,223,0.35); color:var(--cream); padding:8px 14px; border-radius:999px; cursor:pointer; font-size:0.82rem;}
+  nav button:hover{background:rgba(243,238,223,0.12);}
+  nav button.active{background:var(--gold); color:var(--teal-dark); border-color:var(--gold); font-weight:600;}
+  main{max-width:1000px; margin:0 auto; padding:32px 20px 80px;}
+  .panel{display:none;} .panel.active{display:block;}
+  h2{font-size:1.6rem; margin-bottom:4px;}
+  .sub{font-family:-apple-system,BlinkMacSystemFont,sans-serif; color:#6b6656; font-size:0.92rem; margin-bottom:24px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px; margin-bottom:18px;}
+  .pill{display:inline-block; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.68rem; padding:2px 9px; border-radius:999px; margin-bottom:8px; font-weight:700; letter-spacing:.3px;}
+  .pill.food{background:#F2DED5; color:var(--clay);}
+  .pill.transport{background:#DCEAE6; color:var(--teal-dark);}
+  .btn{font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:var(--teal); color:white; border:none; padding:11px 20px; border-radius:9px; font-size:0.9rem; cursor:pointer; font-weight:600;}
+  .btn:hover{background:var(--teal-dark);}
+  .btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+  .btn.secondary{background:transparent; color:var(--teal); border:1.5px solid var(--teal);}
+  .btn.secondary:hover{background:#e9f0ee;}
+  .btn.gold{background:var(--gold); color:var(--teal-dark);}
+  .btn.outline-green{background:white; color:var(--green); border:1.5px solid var(--green);}
+  .btn.outline-amber{background:white; color:var(--amber); border:1.5px solid var(--amber);}
+  .btn.outline-red{background:white; color:var(--red); border:1.5px solid var(--red);}
+  .row-flex{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+  .boards{display:flex; gap:20px; flex-wrap:wrap;}
+  .board{flex:1; min-width:280px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px;}
+  .board h3{margin:0 0 10px; font-size:1.05rem;}
+  .columns{display:flex; gap:8px; flex-wrap:wrap;}
+  .column{width:56px; display:flex; flex-direction:column-reverse; gap:3px; align-items:center;}
+  .column .colLabel{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.6rem; color:#8a8470; margin-top:4px; text-align:center;}
+  .column .slot{width:50px; height:34px; border-radius:5px; border:1.5px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:1.1rem; background:white;}
+  .column .slot.filled{border-style:solid; border-color:var(--teal); background:#eef5f2;}
+  .column.complete .slot.filled{border-color:var(--gold); background:#faf3dd;}
+  .tap-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; margin-top:16px;}
+  .tap-grid button{font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:white; border:1.5px solid var(--line); border-radius:10px; padding:12px 6px; cursor:pointer; font-size:0.76rem; text-align:center; transition:all .12s;}
+  .tap-grid button:hover{border-color:var(--teal); background:#f0f5f3; transform:translateY(-1px);}
+  .tap-grid .emoji{display:block; font-size:2rem; margin-bottom:4px;}
+  .tap-grid button.food{border-color:#E3C3B4;}
+  .tap-grid button.transport{border-color:#BFDAD3;}
+  .row-track{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
+  .row-track .slot{width:40px; height:40px; border-radius:6px; border:1.5px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:1.3rem; background:white;}
+  .modal-overlay{display:none; position:fixed; inset:0; background:rgba(43,42,37,0.55); z-index:50; align-items:center; justify-content:center; padding:20px;}
+  .modal-overlay.active{display:flex;}
+  .modal{background:var(--cream); border-radius:16px; padding:32px; max-width:460px; width:100%; border:2px solid var(--gold); text-align:center;}
+  .modal .badge{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.72rem; font-weight:700; color:var(--clay); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px;}
+  .modal p.q{font-size:1.2rem; line-height:1.5; margin:14px 0 20px;}
+  .modal .qbtns{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .modal .audio-row{display:flex; justify-content:center; margin:-8px 0 18px;}
+  .prompt-box{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; text-align:left; background:white; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:12px 0 18px;}
+  .prompt-box strong{display:block; color:var(--teal-dark); margin-bottom:7px;}
+  .prompt-box ul{margin:0; padding-left:20px;}
+  .prompt-box li{margin:6px 0; line-height:1.35;}
+  .log{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.78rem; max-height:340px; overflow-y:auto;}
+  .log-row{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);}
+  .log-row span:first-child{color:var(--teal-dark); font-weight:600;}
+  .log-row span:last-child{color:#8a8470;}
+  .empty{font-family:-apple-system,BlinkMacSystemFont,sans-serif; color:#8a8470; font-size:0.85rem; padding:20px 0; text-align:center;}
+  .note{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.78rem; background:#EFE9D6; border-left:3px solid var(--gold); padding:10px 14px; border-radius:0 8px 8px 0; margin-bottom:18px; color:#5c5638;}
+  .stat-row{display:flex; gap:18px; flex-wrap:wrap; margin-top:6px;}
+  .stat{font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  .stat .num{font-size:1.6rem; font-weight:700; color:var(--teal-dark); font-family:Georgia,serif;}
+  .stat .lbl{font-size:0.72rem; color:#8a8470; text-transform:uppercase; letter-spacing:.4px;}
+  select, input[type=text]{font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:8px 10px; border-radius:6px; border:1px solid var(--line); font-size:0.85rem;}
+  #qrOutput{display:flex; justify-content:center; padding:20px; background:white; border-radius:10px; margin-top:14px;}
+  .turn-toggle{display:flex; gap:8px; align-items:center; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.82rem;}
+  .result-banner{border-radius:12px; padding:22px; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  .result-banner.ok{background:#E4EFEA; border:1.5px solid var(--green);}
+  .result-banner.flag{background:#FBEEE7; border:1.5px solid var(--clay);}
+  .result-banner.wait{background:#F4EFDF; border:1.5px solid var(--gold);}
+  .result-banner h3{margin-top:0; font-family:Georgia,serif;}
+  .resource-list{list-style:none; padding:0; margin:14px 0 0;}
+  .resource-list li{padding:10px 0; border-top:1px solid rgba(0,0,0,0.08); font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:0.85rem;}
+  .resource-list b{display:block; color:var(--teal-dark);}
+  .metric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:14px;}
+  .metric-box{background:white; border:1px solid var(--line); border-radius:10px; padding:14px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+  .metric-box .metric-value{display:block; color:var(--teal-dark); font-family:Georgia,serif; font-size:1.4rem; font-weight:700; margin-bottom:3px;}
+  .metric-box .metric-label{font-size:0.74rem; color:#77705d; text-transform:uppercase; letter-spacing:.35px;}
+  .threshold-list{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:0.86rem; line-height:1.5; padding-left:20px;}
+  .threshold-list li{margin-bottom:8px;}
+  .voucher{position:relative; overflow:hidden; background:linear-gradient(135deg,var(--teal-dark),var(--teal)); color:white; border-radius:18px; padding:26px; min-height:230px; box-shadow:0 14px 35px rgba(42,74,67,.18);}
+  .voucher::after{content:"DEMO"; position:absolute; right:-18px; top:34px; transform:rotate(28deg); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:4.2rem; font-weight:800; color:rgba(255,255,255,.09); letter-spacing:5px;}
+  .voucher-top{display:flex; justify-content:space-between; gap:18px; align-items:flex-start; position:relative; z-index:1;}
+  .voucher-amount{font-size:3.2rem; line-height:1; color:#FFE79A; margin:6px 0 12px;}
+  .voucher-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace; display:inline-block; background:rgba(255,255,255,.13); padding:8px 11px; border-radius:8px; letter-spacing:1px; margin-top:10px;}
+  .demo-stamp{border:2px solid #FFE79A; color:#FFE79A; border-radius:999px; padding:6px 10px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-weight:800; font-size:.7rem; letter-spacing:.8px; white-space:nowrap;}
+  .progress-track{height:9px; background:#E6DECA; border-radius:999px; overflow:hidden; margin:10px 0 6px;}
+  .progress-track span{display:block; height:100%; background:var(--gold); border-radius:999px; transition:width .25s ease;}
+  .toast{position:fixed; left:50%; bottom:26px; transform:translate(-50%,18px); background:var(--teal-dark); color:white; padding:11px 16px; border-radius:999px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:.82rem; opacity:0; pointer-events:none; transition:.2s; z-index:80; box-shadow:0 8px 28px rgba(0,0,0,.2);}
+  .toast.show{opacity:1; transform:translate(-50%,0);}
+  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;}
+  @media print{ header, nav, .no-print{display:none !important;} body{background:white;} }
+</style>
+</head>
+<body>
+
+<header class="no-print">
+  <div>
+    <h1>🀄 Tap &amp; Tell</h1>
+    <div class="tag">Companion app for the interactive memory mat</div>
+  </div>
+  <nav id="nav">
+    <button data-panel="home" class="active">Home</button>
+    <button data-panel="game1">Game 1 · Collect the Set</button>
+    <button data-panel="game2">Game 2 · Pairs</button>
+    <button data-panel="results">Results</button>
+    <button data-panel="reward">Demo Reward</button>
+    <button data-panel="log">Session Log</button>
+    <button data-panel="qr">Get QR Code</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- HOME -->
+  <div class="panel active" id="panel-home">
+    <h2>One mat, an app full of games</h2>
+    <div class="sub">This screen represents what the mat's app shows once paired. Tapping a tile icon here stands in for the mat sensing a tile placement (faked NFC for this lofi build) and sending that data to the phone.</div>
+    <div class="note">In the final product, each mat cell reads the tile placed on it via embedded NFC and sends that automatically. For this prototype, a facilitator taps the matching icon as each physical tile is placed — same data, no electronics needed to demo.</div>
+    <div class="card" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px;">
+      <div>
+        <span class="pill transport">Guided recall</span>
+        <h3 style="margin:4px 0;">Game 1 — Collect the Set</h3>
+        <p class="sub" style="margin-bottom:14px;">Each player owns a category — Food or Transport — with 5 columns, one per tile design. Complete a column of 4 identical tiles to hear a memory question. If the player hesitates or cannot answer, the app suggests gentle follow-up prompts and records the outcome.</p>
+        <button class="btn" onclick="showPanel('game1')">Open Game 1</button>
+      </div>
+      <div>
+        <span class="pill food">Matching only</span>
+        <h3 style="margin:4px 0;">Game 2 — Pairs</h3>
+        <p class="sub" style="margin-bottom:14px;">All tiles face down. Tap the two tiles flipped — a match earns a point; a miss means both go back face down and play passes to the next player (or bot). There are no recall questions in this game.</p>
+        <button class="btn" onclick="showPanel('game2')">Open Game 2</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">After both games</h3>
+      <p class="sub" style="margin-bottom:10px;">Head to <b>Results</b> for the session summary and the exact rule used to suggest a professional screening. Game 2 is reported as game progress only and does not affect that suggestion.</p>
+      <p class="sub" style="margin-bottom:0;">Complete one Game 1 question and four Game 2 turns to unlock the clearly marked demo voucher reward.</p>
+    </div>
+  </div>
+
+  <!-- GAME 1 -->
+  <div class="panel" id="panel-game1">
+    <h2>Game 1 — Collect the Set</h2>
+    <div class="sub">Guided recall · complete a set of 4 to hear a question, then record how much support was needed</div>
+
+    <div class="card">
+      <div class="row-flex" style="margin-bottom:14px;">
+        <div>
+          <label class="sans" style="font-size:0.78rem; font-weight:600;">Player A's category</label><br>
+          <select id="catA" onchange="onCatChange('A')"></select>
+        </div>
+        <div>
+          <label class="sans" style="font-size:0.78rem; font-weight:600;">Player B's category</label><br>
+          <select id="catB" onchange="onCatChange('B')"></select>
+        </div>
+        <button class="btn secondary" onclick="resetGame1()">Reset round</button>
+      </div>
+
+      <div class="boards">
+        <div class="board">
+          <h3>Player A — <span id="catAPill" class="pill"></span></h3>
+          <div class="columns" id="boardA"></div>
+        </div>
+        <div class="board">
+          <h3>Player B — <span id="catBPill" class="pill"></span></h3>
+          <div class="columns" id="boardB"></div>
+        </div>
+      </div>
+
+      <div class="sans" style="font-size:0.78rem; margin-top:16px; color:#6b6656;">Tap the tile as it's drawn/placed on the mat:</div>
+      <div class="tap-grid" id="tapGrid1"></div>
+    </div>
+  </div>
+
+  <!-- GAME 2 -->
+  <div class="panel" id="panel-game2">
+    <h2>Game 2 — Pairs</h2>
+    <div class="sub">Matching only · flip two tiles and see if they match; no recall questions</div>
+    <div class="card">
+      <div class="stat-row" style="margin-bottom:14px;">
+        <div class="stat"><div class="num" id="g2attempts">0</div><div class="lbl">Attempts</div></div>
+        <div class="stat"><div class="num" id="g2matches">0</div><div class="lbl">Matches</div></div>
+        <div class="stat"><div class="num" id="g2turn">A</div><div class="lbl">Current turn</div></div>
+      </div>
+      <div class="row-flex" style="margin-bottom:14px;">
+        <button class="btn secondary" onclick="resetGame2()">Reset round</button>
+        <label class="turn-toggle"><input type="checkbox" id="includeBot" onchange="resetGame2()"> Include a bot player in rotation</label>
+      </div>
+      <div class="board" style="max-width:260px;">
+        <h3>This flip</h3>
+        <div class="row-track" id="flipSlots">
+          <div class="slot" id="flipSlot0">?</div>
+          <div class="slot" id="flipSlot1">?</div>
+        </div>
+      </div>
+      <div class="sans" style="font-size:0.78rem; margin-top:16px; color:#6b6656;">Tap the two tiles flipped on the mat:</div>
+      <div class="tap-grid" id="tapGrid2"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="panel" id="panel-results">
+    <h2>Results</h2>
+    <div class="sub">A transparent session summary showing the data collected and the prototype threshold used. This is not a diagnosis or validated screening test.</div>
+    <div id="resultsBody"><div class="empty">Play at least a few rounds of both games to see a summary here.</div></div>
+    <div class="row-flex no-print" style="margin-top:16px;">
+      <button class="btn secondary" onclick="resetAllResults()">Clear results</button>
+    </div>
+  </div>
+
+  <!-- REWARD -->
+  <div class="panel" id="panel-reward">
+    <h2>Demo Reward</h2>
+    <div class="sub">A pretend incentive for prototype testing. It is not issued by the CDC Vouchers Scheme and cannot be redeemed.</div>
+    <div id="rewardBody"></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="panel" id="panel-log">
+    <h2>Session Log</h2>
+    <div class="sub">Every tap and response, timestamped — what a facilitator reviews after the session. Never shown to the player during play.</div>
+    <div class="card">
+      <div class="log" id="logList"><div class="empty">No taps yet. Play a round to see the log fill in.</div></div>
+    </div>
+  </div>
+
+  <!-- QR -->
+  <div class="panel" id="panel-qr">
+    <h2>Get QR Code</h2>
+    <div class="sub">Host this page anywhere (GitHub Pages, Netlify, etc.), paste the live link below, and generate a QR code to stick on the mat or prototype box — scanning it opens this app directly.</div>
+    <div class="card">
+      <label class="sans" style="font-size:0.78rem; font-weight:600;">App URL</label><br>
+      <div class="row-flex" style="margin-top:6px;">
+        <input type="text" id="qrUrlInput" style="flex:1; min-width:240px;" placeholder="https://your-hosted-link.com">
+        <button class="btn gold" onclick="generateQR()">Generate QR</button>
+      </div>
+      <div id="qrOutput"></div>
+      <div class="row-flex no-print" id="printQrRow" style="display:none; margin-top:14px;">
+        <button class="btn secondary" onclick="window.print()">🖨️ Print QR</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="modal-overlay no-print" id="qModal">
+  <div class="modal">
+    <div class="badge" id="qBadge">Set complete</div>
+    <p class="q" id="qText"></p>
+    <div id="qPromptBox"></div>
+    <div class="audio-row">
+      <button class="btn secondary" id="qSpeakBtn" onclick="speakCurrentQuestion()" aria-label="Read the question aloud">🔊 Hear question again</button>
+    </div>
+    <div class="qbtns" id="qBtns"></div>
+  </div>
+</div>
+
+<div class="toast no-print" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ---------- Tile data ----------
+const CATEGORIES = { food: {label:"Kopitiam Food", emoji:"🍜"}, transport: {label:"Getting Around", emoji:"🚲"} };
+
+const TILES = [
+  {id:"food1", cat:"food", name:"Toast", emoji:"🍞", q:"When did you last have toast for breakfast?", prompts:["Take your time — there is no rush.", "Was it at home or somewhere outside?", "Who were you with, or what did you drink with it?"]},
+  {id:"food2", cat:"food", name:"Half-Boiled Eggs", emoji:"🍳", q:"How do you like your eggs prepared?", prompts:["Think about a familiar breakfast.", "Do you prefer the yolk runny or firm?", "Do you add pepper or dark soy sauce?"]},
+  {id:"food3", cat:"food", name:"Kopi / Teh", emoji:"☕", q:"How do you take your kopi or teh — kosong, siew dai, or gah dai?", prompts:["Picture yourself ordering at a familiar drinks stall.", "Would you usually choose kopi or teh?", "Do you like it less sweet, more sweet, or without sugar?"]},
+  {id:"food4", cat:"food", name:"Kaya Toast", emoji:"🧈", q:"What's a memory you have of kaya toast with family?", prompts:["It is okay to pause and think.", "Was it usually breakfast, tea, or a weekend treat?", "Can you picture where you were or who was there?"]},
+  {id:"food5", cat:"food", name:"Chicken Rice", emoji:"🍛", q:"Where's your favourite place to get chicken rice?", prompts:["Think of a hawker centre or coffee shop you know well.", "Was it near home, work, or somewhere you visited?", "What did you like about that stall?"]},
+  {id:"transport1", cat:"transport", name:"Taxi", emoji:"🚕", q:"When did you last take a taxi, and where to?", prompts:["Take a moment — an approximate answer is fine.", "Was it for an appointment, a visit, or an outing?", "Did you travel from home or from somewhere else?"]},
+  {id:"transport2", cat:"transport", name:"Trishaw", emoji:"🛺", q:"Have you ever ridden a trishaw? Tell me about it.", prompts:["It is fine if the answer is no.", "Did you see or ride one around town when you were younger?", "Who were you with, or what place do you remember?"]},
+  {id:"transport3", cat:"transport", name:"Bus", emoji:"🚌", q:"Which bus service did you take most often?", prompts:["Think of a regular trip from home.", "Was it a trip to work, school, the market, or somewhere else?", "What neighbourhood or landmark did the bus pass?"]},
+  {id:"transport4", cat:"transport", name:"Train", emoji:"🚆", q:"How has taking the train changed since you were young?", prompts:["There is no single correct answer.", "Did you use trains often when you were younger?", "What feels different now — the routes, stations, crowds, or tickets?"]},
+  {id:"transport5", cat:"transport", name:"Bicycle", emoji:"🚲", q:"When's the last time you rode a bicycle?", prompts:["An approximate time is enough.", "Was it as a child, for work, or for leisure?", "Where did you ride, and was anyone with you?"]},
+];
+const tileById = Object.fromEntries(TILES.map(t => [t.id, t]));
+const tilesByCat = { food: TILES.filter(t=>t.cat==='food'), transport: TILES.filter(t=>t.cat==='transport') };
+
+let sessionLog = [];
+let results = { g1responses: [], g2attempts: 0, g2matches: 0 };
+let rewardClaimed = false;
+let rewardCode = '';
+let currentQuestionText = '';
+
+function logTap(context, tile){
+  sessionLog.push({time: new Date(), context, tile: tile.name});
+  renderLog();
+}
+function logResponse(context, tileName, quality){
+  sessionLog.push({time: new Date(), context: context + ' — response', tile: `${tileName}: ${quality}`});
+  renderLog();
+}
+function logEvent(context, detail){
+  sessionLog.push({time: new Date(), context, tile: detail});
+  renderLog();
+}
+function renderLog(){
+  const el = document.getElementById('logList');
+  if(sessionLog.length === 0){ el.innerHTML = '<div class="empty">No taps yet. Play a round to see the log fill in.</div>'; return; }
+  el.innerHTML = sessionLog.slice().reverse().map(l =>
+    `<div class="log-row"><span>${l.context} — ${l.tile}</span><span>${l.time.toLocaleTimeString()}</span></div>`
+  ).join('');
+}
+function showToast(message){
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ---------- Nav ----------
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+  if(name === 'results') renderResults();
+  if(name === 'reward') renderReward();
+}
+document.querySelectorAll('#nav button').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
+
+// ---------- Tap grids ----------
+function buildTapGrid(elId, onTap){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  TILES.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = t.cat;
+    btn.innerHTML = `<span class="emoji">${t.emoji}</span>${t.name}`;
+    btn.onclick = () => onTap(t);
+    el.appendChild(btn);
+  });
+}
+
+// ---------- Game 1: Collect the Set ----------
+let g1boards = { A: {}, B: {} }; // { tileId: count }
+function populateCategorySelects(){
+  ['catA','catB'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = Object.entries(CATEGORIES).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.label}</option>`).join('');
+  });
+  document.getElementById('catA').value = 'food';
+  document.getElementById('catB').value = 'transport';
+  updateCatPills();
+}
+function onCatChange(who){
+  const a = document.getElementById('catA'), b = document.getElementById('catB');
+  if(a.value === b.value){
+    const other = a.value === 'food' ? 'transport' : 'food';
+    if(who === 'A') b.value = other; else a.value = other;
+  }
+  updateCatPills();
+  resetGame1();
+}
+function updateCatPills(){
+  const a = document.getElementById('catA').value, b = document.getElementById('catB').value;
+  document.getElementById('catAPill').className = 'pill ' + a;
+  document.getElementById('catAPill').textContent = CATEGORIES[a].label;
+  document.getElementById('catBPill').className = 'pill ' + b;
+  document.getElementById('catBPill').textContent = CATEGORIES[b].label;
+}
+function resetGame1(){
+  g1boards = { A: {}, B: {} };
+  renderBoards();
+}
+function renderBoards(){
+  renderBoard('A', document.getElementById('catA').value, 'boardA');
+  renderBoard('B', document.getElementById('catB').value, 'boardB');
+}
+function renderBoard(player, cat, elId){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  tilesByCat[cat].forEach(t => {
+    const count = g1boards[player][t.id] || 0;
+    const col = document.createElement('div');
+    col.className = 'column' + (count >= 4 ? ' complete' : '');
+    let slots = '';
+    for(let i=0;i<4;i++){ slots += `<div class="slot ${i < count ? 'filled':''}">${i < count ? t.emoji : ''}</div>`; }
+    col.innerHTML = slots + `<div class="colLabel">${t.name}</div>`;
+    el.appendChild(col);
+  });
+}
+function handleGame1Tile(tile){
+  logTap('Game 1 drawn', tile);
+  const catA = document.getElementById('catA').value, catB = document.getElementById('catB').value;
+  const player = tile.cat === catA ? 'A' : (tile.cat === catB ? 'B' : null);
+  if(!player) return;
+  const current = g1boards[player][tile.id] || 0;
+  if(current >= 4) return;
+  g1boards[player][tile.id] = current + 1;
+  renderBoards();
+  if(g1boards[player][tile.id] === 4){
+    triggerQuestion(tile, player, 'game1');
+  }
+}
+function triggerQuestion(tile, player){
+  document.getElementById('qBadge').textContent = `Player ${player} completed the set — ${tile.name}`;
+  document.getElementById('qText').textContent = tile.q;
+  document.getElementById('qPromptBox').innerHTML = '';
+  document.getElementById('qSpeakBtn').textContent = '🔊 Hear question again';
+  currentQuestionText = tile.q;
+  const btnRow = document.getElementById('qBtns');
+  btnRow.innerHTML = `
+    <button class="btn outline-green" onclick="independentAnswer('${tile.id}','${player}')">Answered independently</button>
+    <button class="btn outline-amber" onclick="showPromptStage('${tile.id}','${player}','hesitated')">Hesitated / needed encouragement</button>
+    <button class="btn outline-red" onclick="showPromptStage('${tile.id}','${player}','could not answer')">Couldn’t answer</button>
+  `;
+  document.getElementById('qModal').classList.add('active');
+  speakText(tile.q);
+}
+function speakText(text){
+  if(!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)){
+    showToast('Audio is not supported in this browser.');
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-SG';
+  utterance.rate = 0.9;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
+}
+function speakCurrentQuestion(){
+  speakText(currentQuestionText);
+}
+function independentAnswer(tileId, player){
+  const tile = tileById[tileId];
+  logResponse('Game 1', tile.name, 'answered independently');
+  results.g1responses.push({ tile: tile.name, player, quality: 'independent', initial: 'answered' });
+  window.speechSynthesis?.cancel();
+  document.getElementById('qModal').classList.remove('active');
+  showToast('Recorded as answered independently.');
+  renderReward();
+}
+function showPromptStage(tileId, player, initialState){
+  const tile = tileById[tileId];
+  window.speechSynthesis?.cancel();
+  document.getElementById('qBadge').textContent = `Pause, encourage, then prompt — ${tile.name}`;
+  document.getElementById('qText').textContent = 'Give the player a little time. Reassure them that an approximate answer is okay, then try one cue at a time.';
+  document.getElementById('qPromptBox').innerHTML = `<div class="prompt-box"><strong>Gentle prompts to try</strong><ul>${tile.prompts.map(prompt => `<li>${prompt}</li>`).join('')}</ul></div>`;
+  document.getElementById('qSpeakBtn').textContent = '🔊 Hear original question';
+  const btnRow = document.getElementById('qBtns');
+  btnRow.innerHTML = `
+    <button class="btn outline-amber" onclick="promptedAnswer('${tile.id}','${player}','${initialState}')">Answered after encouragement / prompt</button>
+    <button class="btn outline-red" onclick="unsureAnswer('${tile.id}','${player}','${initialState}')">Still couldn’t answer</button>
+  `;
+}
+function promptedAnswer(tileId, player, initialState){
+  const tile = tileById[tileId];
+  logResponse('Game 1', tile.name, `answered after support (initially ${initialState})`);
+  results.g1responses.push({ tile: tile.name, player, quality: 'prompted', initial: initialState });
+  document.getElementById('qModal').classList.remove('active');
+  showToast('Recorded as answered after support.');
+  renderReward();
+}
+function unsureAnswer(tileId, player, initialState){
+  const tile = tileById[tileId];
+  logResponse('Game 1', tile.name, `unable after support (initially ${initialState})`);
+  results.g1responses.push({ tile: tile.name, player, quality: 'unable', initial: initialState });
+  document.getElementById('qModal').classList.remove('active');
+  showToast('Recorded: unable to answer after support.');
+  renderReward();
+}
+
+// ---------- Game 2: Pairs ----------
+let g2 = { flips: [], attempts: 0, matches: 0, turnIdx: 0, players: ['A','B'] };
+function resetGame2(){
+  const includeBot = document.getElementById('includeBot').checked;
+  g2 = { flips: [], attempts: 0, matches: 0, turnIdx: 0, players: includeBot ? ['A','B','Bot'] : ['A','B'] };
+  results.g2attempts = 0; results.g2matches = 0;
+  updateG2Stats();
+  document.getElementById('flipSlot0').textContent = '?';
+  document.getElementById('flipSlot1').textContent = '?';
+  renderReward();
+}
+function updateG2Stats(){
+  document.getElementById('g2attempts').textContent = g2.attempts;
+  document.getElementById('g2matches').textContent = g2.matches;
+  document.getElementById('g2turn').textContent = g2.players[g2.turnIdx];
+}
+function handleGame2Tile(tile){
+  if(g2.flips.length >= 2) g2.flips = [];
+  g2.flips.push(tile);
+  document.getElementById('flipSlot'+(g2.flips.length-1)).textContent = tile.emoji;
+  logTap('Game 2 flipped', tile);
+
+  if(g2.flips.length === 2){
+    g2.attempts++; results.g2attempts++;
+    const isMatch = g2.flips[0].id === g2.flips[1].id;
+    if(isMatch){
+      g2.matches++; results.g2matches++;
+      logEvent('Game 2 result', 'match');
+      showToast('Match! One point added.');
+    } else {
+      g2.turnIdx = (g2.turnIdx + 1) % g2.players.length;
+      logEvent('Game 2 result', 'not a match — turn passed');
+      showToast('Not a match. Turn passes.');
+    }
+    updateG2Stats();
+    renderReward();
+    setTimeout(() => {
+      document.getElementById('flipSlot0').textContent = '?';
+      document.getElementById('flipSlot1').textContent = '?';
+      g2.flips = [];
+    }, 900);
+  }
+}
+
+// ---------- Results ----------
+function resetAllResults(){
+  results = { g1responses: [], g2attempts: 0, g2matches: 0 };
+  rewardClaimed = false;
+  rewardCode = '';
+  renderResults();
+  renderReward();
+}
+function renderResults(){
+  const el = document.getElementById('resultsBody');
+  const totalResponses = results.g1responses.length;
+  const g2played = results.g2attempts > 0;
+  const independent = results.g1responses.filter(r => r.quality === 'independent').length;
+  const prompted = results.g1responses.filter(r => r.quality === 'prompted').length;
+  const unable = results.g1responses.filter(r => r.quality === 'unable').length;
+  const supportCount = prompted + unable;
+  const supportRate = totalResponses ? supportCount / totalResponses : 0;
+  const unableRate = totalResponses ? unable / totalResponses : 0;
+  const matchRate = g2played ? results.g2matches / results.g2attempts : null;
+  const minimumMet = totalResponses >= 5;
+  const supportThresholdMet = minimumMet && supportRate >= 0.60;
+  const unableThresholdMet = minimumMet && unableRate >= 0.40;
+  const screeningSuggested = supportThresholdMet || unableThresholdMet;
+
+  let decisionClass = 'wait';
+  let decisionTitle = 'Not enough Game 1 data yet';
+  let decisionCopy = `Record ${Math.max(0, 5-totalResponses)} more Game 1 question${Math.max(0, 5-totalResponses) === 1 ? '' : 's'} before this prototype applies its follow-up rule. Game 2 remains a matching game and does not change this decision.`;
+  if(minimumMet && screeningSuggested){
+    decisionClass = 'flag';
+    decisionTitle = 'A validated screening is worth considering';
+    const reasons = [];
+    if(supportThresholdMet) reasons.push(`${Math.round(supportRate*100)}% of answers needed encouragement or prompting (threshold: 60%)`);
+    if(unableThresholdMet) reasons.push(`${Math.round(unableRate*100)}% were still unanswered after support (threshold: 40%)`);
+    decisionCopy = `This session crossed the prototype rule because ${reasons.join(' and ')}. This does not mean the player has cognitive impairment; it means a conversation with a GP, polyclinic, or community screening service may be useful.`;
+  } else if(minimumMet){
+    decisionClass = 'ok';
+    decisionTitle = 'Prototype follow-up threshold not reached';
+    decisionCopy = `The current support-needed rate is ${Math.round(supportRate*100)}% and the unable-after-support rate is ${Math.round(unableRate*100)}%. Both are below the prototype thresholds for this session. Real-world concerns should still be discussed with a healthcare professional regardless of this result.`;
+  }
+
+  let html = `<div class="card">
+    <h3 style="margin-top:0;">What was recorded</h3>
+    <div class="metric-grid">
+      <div class="metric-box"><span class="metric-value">${totalResponses}</span><span class="metric-label">Game 1 questions</span></div>
+      <div class="metric-box"><span class="metric-value">${independent}</span><span class="metric-label">Independent answers</span></div>
+      <div class="metric-box"><span class="metric-value">${prompted}</span><span class="metric-label">Answered after support</span></div>
+      <div class="metric-box"><span class="metric-value">${unable}</span><span class="metric-label">Unable after support</span></div>
+      <div class="metric-box"><span class="metric-value">${results.g2matches}/${results.g2attempts}</span><span class="metric-label">Game 2 matches / attempts</span></div>
+      <div class="metric-box"><span class="metric-value">${matchRate !== null ? Math.round(matchRate*100)+'%' : '—'}</span><span class="metric-label">Match rate · game only</span></div>
+    </div>
+  </div>`;
+
+  html += `<div class="result-banner ${decisionClass}">
+    <h3>${decisionTitle}</h3>
+    <p style="margin-bottom:0;">${decisionCopy}</p>
+  </div>`;
+
+  html += `<div class="card">
+    <h3 style="margin-top:0;">Exactly how this prototype decides</h3>
+    <ol class="threshold-list">
+      <li><b>Minimum data:</b> at least 5 completed Game 1 questions. Before that, it reports “not enough data” and makes no suggestion.</li>
+      <li><b>Support-needed threshold:</b> suggest further screening if 60% or more of Game 1 answers needed encouragement or a prompt. This includes both answers recovered with support and answers still missing after support.</li>
+      <li><b>Unable-after-support threshold:</b> also suggest further screening if 40% or more of Game 1 questions remained unanswered after gentle prompts.</li>
+      <li><b>Game 2:</b> attempts, matches, and match rate are shown as game progress only. They do not affect the screening suggestion.</li>
+    </ol>
+    <div class="note" style="margin:14px 0 0;">Current comparison: support needed <b>${supportCount}/${totalResponses || 0} (${totalResponses ? Math.round(supportRate*100) : 0}%)</b> versus 60%; unable after support <b>${unable}/${totalResponses || 0} (${totalResponses ? Math.round(unableRate*100) : 0}%)</b> versus 40%.</div>
+    <p class="sans" style="font-size:0.8rem; line-height:1.5; color:#6b6656; margin-bottom:0;"><b>Why these numbers?</b> Five questions prevents a decision based on only one or two moments; 60% and 40% require a repeated pattern within the session. They are transparent design assumptions for this student prototype—not published medical cut-offs and not clinically validated. Singapore’s MOH advises targeted identification and referral when signs are recognised, rather than population-wide dementia screening of people without signs.</p>
+  </div>`;
+
+  html += `<div class="card">
+    <h3 style="margin-top:0;">What “further screening” means</h3>
+    <p class="sans" style="font-size:0.86rem; line-height:1.5;">A professional can consider validated tools and the person’s health, mood, medication, language, education, hearing, and day-to-day function. The game cannot do that. Seek advice regardless of the score if memory changes are new, worsening, affecting daily life, or creating a safety concern.</p>
+    <ul class="resource-list">
+      <li><b>Start with a regular GP or polyclinic</b>A clinician can assess possible causes and decide whether a formal cognitive screen or referral is appropriate.</li>
+      <li><b><a href="https://www.moh.gov.sg/seeking-healthcare/find-a-facility-or-service/mental-health-services/community-mental-health-and-dementia-services" target="_blank" rel="noopener">MOH community mental health and dementia services</a></b>CREST teams provide dementia-symptom screening and support; COMIT teams provide assessment and intervention.</li>
+      <li><b><a href="https://hpp.moh.gov.sg/guidelines/cpgmed_dementia_revised/" target="_blank" rel="noopener">MOH clinical guidance</a></b>Clinical screening uses structured instruments such as ECAQ, AMT, AD8, MMSE, or MoCA—not this game score.</li>
+    </ul>
+    <p class="sans" style="font-size:0.76rem; color:#8a8470; margin-top:12px; margin-bottom:0;">Educational prototype only. No diagnosis, medical advice, or official screening result is produced or stored.</p>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+// ---------- Demo reward ----------
+function rewardIsEligible(){
+  return results.g1responses.length >= 1 && results.g2attempts >= 4;
+}
+function renderReward(){
+  const el = document.getElementById('rewardBody');
+  if(!el) return;
+  if(rewardClaimed){
+    el.innerHTML = `<div class="voucher">
+      <div class="voucher-top">
+        <div>
+          <div class="sans" style="font-size:.78rem; letter-spacing:.8px; text-transform:uppercase; opacity:.78;">Tap &amp; Tell · mock CDC-style reward</div>
+          <div class="voucher-amount">S$5</div>
+          <div class="sans" style="font-weight:700;">Community treat voucher</div>
+          <div class="voucher-code">${rewardCode}</div>
+        </div>
+        <span class="demo-stamp">DEMO ONLY</span>
+      </div>
+      <p class="sans" style="position:relative; z-index:1; max-width:620px; font-size:.8rem; line-height:1.45; margin-top:28px; opacity:.86;">Not legal tender. No monetary value. Not issued, endorsed, or redeemable under Singapore’s CDC Vouchers Scheme. For user-testing the reward flow only.</p>
+    </div>`;
+    return;
+  }
+
+  const g1Done = Math.min(results.g1responses.length, 1);
+  const g2Done = Math.min(results.g2attempts, 4);
+  const progress = Math.round(((g1Done + g2Done/4) / 2) * 100);
+  el.innerHTML = `<div class="card">
+    <h3 style="margin-top:0;">Unlock a pretend S$5 voucher</h3>
+    <p class="sub" style="margin-bottom:12px;">For the prototype, record one Game 1 response and complete four Game 2 attempts.</p>
+    <div class="progress-track" aria-label="Reward progress"><span style="width:${progress}%"></span></div>
+    <div class="sans" style="font-size:.78rem; color:#6b6656; margin-bottom:16px;">Game 1 response: ${g1Done ? 'done' : 'not yet'} · Game 2 attempts: ${g2Done}/4</div>
+    <button class="btn gold" onclick="claimReward()" ${rewardIsEligible() ? '' : 'disabled'}>Claim demo voucher</button>
+    <p class="sans" style="font-size:.74rem; color:#8a8470; margin:12px 0 0;">This is an invented incentive with no cash value. It deliberately avoids official logos, QR redemption, or merchant claims.</p>
+  </div>`;
+}
+function claimReward(){
+  if(!rewardIsEligible()){
+    showToast('Complete the reward steps first.');
+    return;
+  }
+  rewardClaimed = true;
+  rewardCode = `TNT-DEMO-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
+  logEvent('Demo reward', `claimed ${rewardCode}`);
+  renderReward();
+  showToast('Demo voucher claimed.');
+}
+
+// ---------- QR generator ----------
+function generateQR(){
+  const url = document.getElementById('qrUrlInput').value.trim() || window.location.href;
+  const out = document.getElementById('qrOutput');
+  out.innerHTML = '';
+  new QRCode(out, { text: url, width: 220, height: 220, colorDark:"#2B2A25", colorLight:"#FFFFFF" });
+  document.getElementById('printQrRow').style.display = 'flex';
+}
+
+// ---------- Init ----------
+populateCategorySelects();
+resetGame1();
+resetGame2();
+buildTapGrid('tapGrid1', handleGame1Tile);
+buildTapGrid('tapGrid2', handleGame2Tile);
+renderLog();
+renderReward();
+document.getElementById('qrUrlInput').value = window.location.href;
+</script>
+
+</body>
+</html>
